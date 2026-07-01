@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS tecnicos (
 );
 
 INSERT IGNORE INTO tecnicos (nombre) VALUES
-  ('Juan Perez'),('Maria Lopez'),('Carlos Ibanez'),('Ana Torres');
+  ('Aleksey Unzon'),('Jose Mercado'),('Brandon Von');
 
 -- INCIDENCIAS
 CREATE TABLE IF NOT EXISTS incidencias (
