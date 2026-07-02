@@ -6,6 +6,8 @@ const { ok, created, notFound } = require("../../utils/response");
 
 const router = express.Router();
 
+const verifyBearerToken = require("../../middlewares/verifyBearerToken");
+
 const BASE_SQL = `
   SELECT m.*, e.nombre AS empresa_nombre, t.nombre AS tecnico_nombre,
          i.ticket AS incidencia_ticket
@@ -15,7 +17,7 @@ const BASE_SQL = `
   LEFT JOIN incidencias i  ON i.id = m.incidencia_id`;
 
 // ── GET /api/calendario ────────────────────────────────────────
-router.get("/", async (req, res, next) => {
+router.get("/",verifyBearerToken , async (req, res, next) => {
   try {
     const { empresa_id, tecnico_id, tipo, desde, hasta } = req.query;
     let sql = BASE_SQL + " WHERE 1=1";
@@ -49,7 +51,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // ── GET /api/calendario/:id ────────────────────────────────────
-router.get("/:id", async (req, res, next) => {
+router.get("/:id",verifyBearerToken , async (req, res, next) => {
   try {
     const [rows] = await db.query(BASE_SQL + " WHERE m.id = ?", [
       req.params.id,
@@ -68,7 +70,7 @@ const validar = [
   body("fecha_fin").isISO8601().withMessage("Fecha de fin inválida."),
 ];
 
-router.post("/", validar, validate, async (req, res, next) => {
+router.post("/",verifyBearerToken , validar, validate, async (req, res, next) => {
   try {
     const {
       empresa_id,
@@ -105,7 +107,7 @@ router.post("/", validar, validate, async (req, res, next) => {
 
 // ── PUT /api/calendario/:id ────────────────────────────────────
 // Usado tanto para edición manual como para REAGENDAR una cita (bot o panel)
-router.put("/:id", validar, validate, async (req, res, next) => {
+router.put("/:id",verifyBearerToken , validar, validate, async (req, res, next) => {
   try {
     const [check] = await db.query(
       "SELECT id FROM mantenimientos WHERE id = ?",
@@ -150,7 +152,7 @@ router.put("/:id", validar, validate, async (req, res, next) => {
 });
 
 // ── DELETE /api/calendario/:id ─────────────────────────────────
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id",verifyBearerToken , async (req, res, next) => {
   try {
     const [check] = await db.query(
       "SELECT id FROM mantenimientos WHERE id = ?",

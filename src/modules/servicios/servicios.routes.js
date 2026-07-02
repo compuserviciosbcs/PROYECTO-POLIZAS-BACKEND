@@ -41,7 +41,7 @@ router.get("/", verifyBearerToken ,async (req, res, next) => {
 });
 
 // ── GET /api/servicios/tipos ───────────────────────────────────
-router.get("/tipos", async (req, res, next) => {
+router.get("/tipos",verifyBearerToken , async (req, res, next) => {
   try {
     const [rows] = await db.query(
       "SELECT * FROM tipos_servicio ORDER BY nombre",
@@ -53,7 +53,7 @@ router.get("/tipos", async (req, res, next) => {
 });
 
 // ── GET /api/servicios/:id ─────────────────────────────────────
-router.get("/:id", async (req, res, next) => {
+router.get("/:id",verifyBearerToken , async (req, res, next) => {
   try {
     const [rows] = await db.query(
       `SELECT s.*, ts.nombre AS tipo_nombre
@@ -99,7 +99,7 @@ router.post("/",verifyBearerToken, validarServicio, validate, async (req, res, n
 });
 
 // ── PUT /api/servicios/:id ─────────────────────────────────────
-router.put("/:id", validarServicio, validate, async (req, res, next) => {
+router.put("/:id",verifyBearerToken , validarServicio, validate, async (req, res, next) => {
   try {
     const { nombre, tipo_servicio_id, costo, activo } = req.body;
     const [check] = await db.query("SELECT id FROM servicios WHERE id = ?", [
@@ -123,7 +123,7 @@ router.put("/:id", validarServicio, validate, async (req, res, next) => {
 });
 
 // ── DELETE /api/servicios/:id ──────────────────────────────────
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id",verifyBearerToken , async (req, res, next) => {
   try {
     const [check] = await db.query("SELECT id FROM servicios WHERE id = ?", [
       req.params.id,
