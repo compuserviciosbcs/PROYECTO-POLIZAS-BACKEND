@@ -80,7 +80,7 @@ const validarServicio = [
     .withMessage("El costo debe ser un número positivo."),
 ];
 
-router.post("/", validarServicio, validate, async (req, res, next) => {
+router.post("/",verifyBearerToken, validarServicio, validate, async (req, res, next) => {
   try {
     const { nombre, tipo_servicio_id, costo } = req.body;
     const [result] = await db.query(
