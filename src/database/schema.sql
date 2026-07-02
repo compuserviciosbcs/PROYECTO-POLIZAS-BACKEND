@@ -3,11 +3,11 @@
 --  Importar o ejecutar: npm run db:init
 -- ============================================================
 
-CREATE DATABASE IF NOT EXISTS polizas_crm
+CREATE DATABASE IF NOT EXISTS sql-db
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
-USE polizas_crm;
+USE sql-db;
 
 -- TIPOS DE SERVICIO
 CREATE TABLE IF NOT EXISTS tipos_servicio (

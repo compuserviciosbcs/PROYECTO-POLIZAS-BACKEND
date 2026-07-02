@@ -8,7 +8,7 @@
 --  Si vas a inicializar la BD desde cero, no necesitas este archivo.
 -- ============================================================
 
-USE polizas_crm;
+USE sql-db;
 
 ALTER TABLE mantenimientos
   ADD COLUMN IF NOT EXISTS incidencia_id INT NULL AFTER tecnico_id,
