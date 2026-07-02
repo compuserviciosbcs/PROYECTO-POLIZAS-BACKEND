@@ -6,8 +6,10 @@ const { ok, created, notFound } = require("../../utils/response");
 
 const router = express.Router();
 
+const verifyBearerToken = require("../../middlewares/verifyBearerToken");
+
 // ── GET /api/servicios ─────────────────────────────────────────
-router.get("/", async (req, res, next) => {
+router.get("/", verifyBearerToken ,async (req, res, next) => {
   try {
     const { tipo, search, activo } = req.query;
     let sql = `
