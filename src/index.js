@@ -70,6 +70,7 @@ app.listen(PORT, () => {
   console.log(
     `    POST http://localhost:${PORT}/api/webhooks/bot/incidencia  (requiere x-api-key)`,
   );
+  console.log("hola");
 });
 
 module.exports = app;
