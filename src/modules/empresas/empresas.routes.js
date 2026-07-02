@@ -6,8 +6,10 @@ const { ok, created, notFound } = require("../../utils/response");
 
 const router = express.Router();
 
+const verifyBearerToken = require("../../middlewares/verifyBearerToken");
+
 // ── GET /api/empresas ──────────────────────────────────────────
-router.get("/", async (req, res, next) => {
+router.get("/", verifyBearerToken , async (req, res, next) => {
   try {
     const { estatus, giro, search } = req.query;
     let sql = "SELECT * FROM empresas WHERE 1=1";
@@ -33,7 +35,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // ── GET /api/empresas/:id — expediente completo ────────────────
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", erifyBearerToken , async (req, res, next) => {
   try {
     const [rows] = await db.query("SELECT * FROM empresas WHERE id = ?", [
       req.params.id,
@@ -88,7 +90,7 @@ const validarEmpresa = [
     .withMessage("Email inválido."),
 ];
 
-router.post("/", validarEmpresa, validate, async (req, res, next) => {
+router.post("/", verifyBearerToken , validarEmpresa, validate, async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
@@ -139,7 +141,7 @@ router.post("/", validarEmpresa, validate, async (req, res, next) => {
 });
 
 // ── PUT /api/empresas/:id ──────────────────────────────────────
-router.put("/:id", validarEmpresa, validate, async (req, res, next) => {
+router.put("/:id", verifyBearerToken , validarEmpresa, validate, async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     const [check] = await conn.query("SELECT id FROM empresas WHERE id = ?", [
@@ -195,7 +197,7 @@ router.put("/:id", validarEmpresa, validate, async (req, res, next) => {
 });
 
 // ── DELETE /api/empresas/:id ───────────────────────────────────
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", verifyBearerToken , async (req, res, next) => {
   try {
     const [check] = await db.query("SELECT id FROM empresas WHERE id = ?", [
       req.params.id,
@@ -209,7 +211,7 @@ router.delete("/:id", async (req, res, next) => {
 });
 
 // ── POST /api/empresas/:id/polizas ────────────────────────────
-router.post("/:id/polizas", async (req, res, next) => {
+router.post("/:id/polizas", verifyBearerToken ,async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     const { poliza_id, vigencia, vencimiento } = req.body;
@@ -242,7 +244,7 @@ router.post("/:id/polizas", async (req, res, next) => {
 });
 
 // ── POST /api/empresas/:id/usuarios ───────────────────────────
-router.post("/:id/usuarios", async (req, res, next) => {
+router.post("/:id/usuarios", verifyBearerToken ,async (req, res, next) => {
   try {
     const { nombre, cargo, email, telefono } = req.body;
     if (!nombre?.trim())
