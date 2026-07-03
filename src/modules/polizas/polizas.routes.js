@@ -6,6 +6,8 @@ const { ok, created, notFound } = require("../../utils/response");
 
 const router = express.Router();
 
+const verifyBearerToken = require("../../middlewares/verifyBearerToken");
+
 // Helper — trae póliza completa con servicios y grupo
 async function getPolizaCompleta(id) {
   const [rows] = await db.query(
@@ -31,7 +33,7 @@ async function getPolizaCompleta(id) {
 }
 
 // ── GET /api/polizas ───────────────────────────────────────────
-router.get("/", async (req, res, next) => {
+router.get("/", verifyBearerToken, async (req, res, next) => {
   try {
     const { grupo_id, search, activa } = req.query;
     let sql = `
@@ -75,7 +77,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // ── GET /api/polizas/grupos ────────────────────────────────────
-router.get("/grupos", async (req, res, next) => {
+router.get("/grupos", verifyBearerToken, async (req, res, next) => {
   try {
     const [rows] = await db.query("SELECT * FROM grupos_poliza ORDER BY id");
     ok(res, rows);
@@ -85,7 +87,7 @@ router.get("/grupos", async (req, res, next) => {
 });
 
 // ── GET /api/polizas/:id ───────────────────────────────────────
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", verifyBearerToken, async (req, res, next) => {
   try {
     const poliza = await getPolizaCompleta(req.params.id);
     if (!poliza) return notFound(res);
@@ -104,7 +106,7 @@ const validarPoliza = [
   body("servicios_ids").optional().isArray(),
 ];
 
-router.post("/", validarPoliza, validate, async (req, res, next) => {
+router.post("/", verifyBearerToken, validarPoliza, validate, async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
@@ -161,7 +163,7 @@ router.post("/", validarPoliza, validate, async (req, res, next) => {
 });
 
 // ── PUT /api/polizas/:id ───────────────────────────────────────
-router.put("/:id", validarPoliza, validate, async (req, res, next) => {
+router.put("/:id", verifyBearerToken, validarPoliza, validate, async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     const [check] = await conn.query("SELECT id FROM polizas WHERE id = ?", [
@@ -226,7 +228,7 @@ router.put("/:id", validarPoliza, validate, async (req, res, next) => {
 });
 
 // ── DELETE /api/polizas/:id ────────────────────────────────────
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", verifyBearerToken, async (req, res, next) => {
   try {
     const [check] = await db.query("SELECT id FROM polizas WHERE id = ?", [
       req.params.id,
