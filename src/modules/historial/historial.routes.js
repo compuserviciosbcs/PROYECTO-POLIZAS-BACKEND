@@ -4,7 +4,7 @@ const { ok } = require("../../utils/response");
 
 const router = express.Router();
 
-const verifyBearerToken = requiere("../../middlewares/verifyBearerToken");
+const verifyBearerToken = require("../../middlewares/verifyBearerToken");
 
 // ── GET /api/historial ─────────────────────────────────────────
 router.get("/", verifyBearerToken , async (req, res, next) => {
