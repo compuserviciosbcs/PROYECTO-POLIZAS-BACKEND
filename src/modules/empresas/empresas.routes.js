@@ -35,7 +35,7 @@ router.get("/", verifyBearerToken , async (req, res, next) => {
 });
 
 // ── GET /api/empresas/:id — expediente completo ────────────────
-router.get("/:id", erifyBearerToken , async (req, res, next) => {
+router.get("/:id", verifyBearerToken , async (req, res, next) => {
   try {
     const [rows] = await db.query("SELECT * FROM empresas WHERE id = ?", [
       req.params.id,
