@@ -57,20 +57,8 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`🚀  Polizas API corriendo en http://localhost:${PORT}`);
-  console.log(`📋  Endpoints disponibles:`);
-  console.log(`    GET  http://localhost:${PORT}/api/health`);
-  console.log(`    CRUD http://localhost:${PORT}/api/servicios`);
-  console.log(`    CRUD http://localhost:${PORT}/api/polizas`);
-  console.log(`    CRUD http://localhost:${PORT}/api/empresas`);
-  console.log(`    CRUD http://localhost:${PORT}/api/incidencias`);
-  console.log(`    GET  http://localhost:${PORT}/api/historial`);
-  console.log(`    CRUD http://localhost:${PORT}/api/calendario`);
-  console.log(`    GET  http://localhost:${PORT}/api/tecnicos`);
-  console.log(
-    `    POST http://localhost:${PORT}/api/webhooks/bot/incidencia  (requiere x-api-key)`,
-  );
-  console.log("hola");
+  console.log(`🚀  Polizas API corriendo en puerto: ${PORT}`);
+
 });
 
 module.exports = app;
