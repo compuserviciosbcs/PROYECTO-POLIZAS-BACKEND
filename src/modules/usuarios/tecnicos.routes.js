@@ -4,7 +4,9 @@ const { ok } = require("../../utils/response");
 
 const router = express.Router();
 
-router.get("/", async (req, res, next) => {
+const verifyBearerToken = require("../../middlewares/verifyBearerToken");
+
+router.get("/", verifyBearerToken , async (req, res, next) => {
   try {
     const [rows] = await db.query(
       "SELECT * FROM tecnicos WHERE activo = 1 ORDER BY nombre",
