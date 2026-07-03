@@ -11,6 +11,8 @@ const {
 
 const router = express.Router();
 
+const verifyBearerToken = require("../../middlewares/verifyBearerToken");
+
 // Helper — incidencia completa
 async function getIncidenciaCompleta(id) {
   const [rows] = await db.query(
@@ -46,7 +48,7 @@ async function getIncidenciaCompleta(id) {
 }
 
 // ── GET /api/incidencias ───────────────────────────────────────
-router.get("/", async (req, res, next) => {
+router.get("/", verifyBearerToken, async (req, res, next) => {
   try {
     const {
       estatus,
@@ -101,7 +103,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // ── GET /api/incidencias/stats ─────────────────────────────────
-router.get("/stats", async (req, res, next) => {
+router.get("/stats", verifyBearerToken, async (req, res, next) => {
   try {
     const [[totales]] = await db.query(`
       SELECT
@@ -121,7 +123,7 @@ router.get("/stats", async (req, res, next) => {
 });
 
 // ── GET /api/incidencias/:id ───────────────────────────────────
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", verifyBearerToken, async (req, res, next) => {
   try {
     const inc = await getIncidenciaCompleta(req.params.id);
     if (!inc) return notFound(res);
@@ -211,7 +213,7 @@ const validarIncidencia = [
     .withMessage("Prioridad inválida."),
 ];
 
-router.post("/", validarIncidencia, validate, async (req, res, next) => {
+router.post("/", validarIncidencia, validate, verifyBearerToken, async (req, res, next) => {
   try {
     const inc = await crearIncidencia(req.body);
     created(res, inc);
@@ -221,7 +223,7 @@ router.post("/", validarIncidencia, validate, async (req, res, next) => {
 });
 
 // ── PATCH /api/incidencias/:id/estatus ────────────────────────
-router.patch("/:id/estatus", async (req, res, next) => {
+router.patch("/:id/estatus", verifyBearerToken, async (req, res, next) => {
   try {
     const { estatus } = req.body;
     const validos = ["abierto", "pendiente", "solucionado", "no_solucionado"];
@@ -245,7 +247,7 @@ router.patch("/:id/estatus", async (req, res, next) => {
 });
 
 // ── PATCH /api/incidencias/:id/cerrar ─────────────────────────
-router.patch("/:id/cerrar", async (req, res, next) => {
+router.patch("/:id/cerrar", verifyBearerToken, async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     const { estatus, solucion_aplicada, sla_respuesta_hrs, sla_solucion_hrs } =
@@ -316,7 +318,7 @@ router.patch("/:id/cerrar", async (req, res, next) => {
 });
 
 // ── POST /api/incidencias/:id/notas ───────────────────────────
-router.post("/:id/notas", async (req, res, next) => {
+router.post("/:id/notas", verifyBearerToken, async (req, res, next) => {
   try {
     const { autor, texto } = req.body;
     if (!texto?.trim())
@@ -350,7 +352,7 @@ router.post("/:id/notas", async (req, res, next) => {
 });
 
 // ── PATCH /api/incidencias/:id/cita ──────────────────────────
-router.patch("/:id/cita", async (req, res, next) => {
+router.patch("/:id/cita", verifyBearerToken, async (req, res, next) => {
   try {
     const { fecha, hora, direccion, contacto, telefono } = req.body;
     if (!fecha || !hora)
@@ -393,7 +395,7 @@ router.patch("/:id/cita", async (req, res, next) => {
 });
 
 // ── DELETE /api/incidencias/:id ────────────────────────────────
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", verifyBearerToken, async (req, res, next) => {
   try {
     const [check] = await db.query("SELECT id FROM incidencias WHERE id = ?", [
       req.params.id,

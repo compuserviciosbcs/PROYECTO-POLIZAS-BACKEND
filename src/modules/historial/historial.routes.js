@@ -4,8 +4,10 @@ const { ok } = require("../../utils/response");
 
 const router = express.Router();
 
+const verifyBearerToken = requiere("../../middlewares/verifyBearerToken");
+
 // ── GET /api/historial ─────────────────────────────────────────
-router.get("/", async (req, res, next) => {
+router.get("/", verifyBearerToken , async (req, res, next) => {
   try {
     const { empresa_id, clasificacion, tecnico_id, search, desde, hasta } =
       req.query;
@@ -58,7 +60,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // ── GET /api/historial/reporte-mensual ────────────────────────
-router.get("/reporte-mensual", async (req, res, next) => {
+router.get("/reporte-mensual", verifyBearerToken , async (req, res, next) => {
   try {
     const { anio, mes } = req.query;
     const year = anio || new Date().getFullYear();
