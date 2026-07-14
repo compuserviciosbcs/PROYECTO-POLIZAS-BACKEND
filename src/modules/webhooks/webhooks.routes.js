@@ -6,10 +6,12 @@ const { ok, created, badRequest } = require("../../utils/response");
 const { crearIncidencia } = require("../incidencias/incidencias.routes");
 const { crearEventoCalendario } = require("../calendario/calendario.routes");
 
+const verifyBotApiKey = require("../../middlewares/verifyBotApiKey");
+
 const router = express.Router();
 
 /**
- * Contrato esperado del bot:
+ * Contrato esperado del bot para creación de incidencias:
  * {
  *   "cliente": {
  *     "empresa": "Grupo Constructor Novatek S.A. de C.V.",   // o usa "rfc" (más confiable)
@@ -116,6 +118,74 @@ async function resolverPolizaActiva(empresaId, { poliza_nombre } = {}) {
   return null;
 }
 
+// ── GET /api/webhooks/bot/poliza ─────────────────────────────────
+// Permite al bot consultar la cobertura y servicios de un cliente
+router.get("/bot/poliza", verifyBotApiKey, async (req, res, next) => {
+  try {
+    const { rfc, empresa: nombreEmpresa } = req.query;
+
+    if (!rfc && !nombreEmpresa) {
+      return badRequest(
+        res,
+        "Debes proporcionar el 'rfc' o el nombre de la 'empresa' para consultar.",
+      );
+    }
+
+    // 1. Resolver la empresa
+    const empresa = await resolverEmpresa({ rfc, empresa: nombreEmpresa });
+    if (!empresa) {
+      return res.status(444).json({
+        ok: false,
+        message: `No localicé ninguna empresa que coincida con esos datos.`,
+      });
+    }
+
+    if (empresa.estatus === "inactivo") {
+      return res.status(200).json({
+        ok: true,
+        activo: false,
+        empresa: empresa.nombre,
+        message: `La empresa ${empresa.nombre} se encuentra inactiva en el sistema.`,
+      });
+    }
+
+    // 2. Resolver la póliza activa
+    const polizaActiva = await resolverPolizaActiva(empresa.id);
+    if (!polizaActiva) {
+      return res.status(200).json({
+        ok: true,
+        activo: false,
+        empresa: empresa.nombre,
+        message: `La empresa ${empresa.nombre} no cuenta con ninguna póliza activa actualmente.`,
+      });
+    }
+
+    // 3. Consultar los servicios vinculados a esa póliza específica
+    // (Ajusta los nombres de las tablas/columnas si tu tabla pivot se llama diferente)
+    const [servicios] = await db.query(
+      `SELECT s.nombre, s.descripcion 
+         FROM servicios s
+         JOIN poliza_servicios ps ON ps.servicio_id = s.id
+         WHERE ps.poliza_id = ?`,
+      [polizaActiva.poliza_id],
+    );
+
+    // 4. Responder con los datos estructurados y un mensaje pre-armado para el bot
+    return ok(res, {
+      empresa: empresa.nombre,
+      poliza_activa: {
+        nombre: polizaActiva.poliza_nombre,
+        fecha_inicio: polizaActiva.fecha_inicio,
+        fecha_fin: polizaActiva.fecha_fin,
+        servicios_incluidos: servicios,
+      },
+      mensaje_sugerido: `Confirmado. Tu empresa "${empresa.nombre}" cuenta con la póliza activa "${polizaActiva.poliza_nombre}". Te cubre los siguientes servicios: ${servicios.map((s) => s.nombre).join(", ")}.`,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // ── POST /api/webhooks/bot/incidencia ────────────────────────────
 const validarPayload = [
   body("incidencia.asunto")
@@ -146,6 +216,7 @@ const validarPayload = [
 
 router.post(
   "/bot/incidencia",
+  verifyBotApiKey,
   validarPayload,
   validate,
   async (req, res, next) => {
@@ -205,7 +276,7 @@ router.post(
           incidencia.clasificacion === "presencial" ? incidencia.cita : null,
       });
 
-      // 5. Si es presencial, agendar automáticamente en el calendario (módulo V)
+      // 5. Si es presencial, agendar automáticamente en el calendario
       let eventoCalendario = null;
       if (
         incidencia.clasificacion === "presencial" &&
@@ -213,12 +284,11 @@ router.post(
         incidencia.cita?.hora
       ) {
         const inicio = `${incidencia.cita.fecha} ${incidencia.cita.hora}:00`;
-        // Bloque de 1 hora por default — se puede ajustar manualmente desde el panel
-        const finDate = new Date(
-          `${incidencia.cita.fecha}T${incidencia.cita.hora}:00`,
-        );
-        finDate.setHours(finDate.getHours() + 1);
-        const fin = finDate.toISOString().slice(0, 19).replace("T", " ");
+
+        // Cómputo de hora fin seguro contra desfases de zona horaria (Docker UTC)
+        const [horaStr, minStr] = incidencia.cita.hora.split(":");
+        const horaFin = (parseInt(horaStr, 10) + 1).toString().padStart(2, "0");
+        const fin = `${incidencia.cita.fecha} ${horaFin}:${minStr}:00`;
 
         eventoCalendario = await crearEventoCalendario({
           empresa_id: empresa.id,
@@ -251,10 +321,8 @@ router.post(
             }
           : null,
         mensaje_sugerido: eventoCalendario
-          ? `Hemos registrado tu reporte con el folio ${incidenciaCreada.ticket} y agendado la visita para el ${incidencia.cita.fecha} a las ${incidencia.cita.hora}. ` +
-            `Cobertura vigente: ${polizaVinculada.poliza_nombre}.`
-          : `Hemos registrado tu reporte con el folio ${incidenciaCreada.ticket}. ` +
-            `Nuestro equipo lo atenderá conforme al SLA de tu póliza ${polizaVinculada.poliza_nombre}.`,
+          ? `Hemos registrado tu reporte con el folio ${incidenciaCreada.ticket} y agendado la visita para el ${incidencia.cita.fecha} a las ${incidencia.cita.hora}. Cobertura vigente: ${polizaVinculada.poliza_nombre}.`
+          : `Hemos registrado tu reporte con el folio ${incidenciaCreada.ticket}. Nuestro equipo lo atenderá conforme al SLA de tu póliza ${polizaVinculada.poliza_nombre}.`,
       });
     } catch (e) {
       next(e);

@@ -4,7 +4,8 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const errorHandler = require("./middlewares/errorHandler");
-const verifyBotApiKey = require("./middlewares/verifyBotApiKey");
+// const verifyBotApiKey = require("./middlewares/verifyBotApiKey");
+const verifyBearerToken = require("./middlewares/verifyBearerToken");
 
 // ─── Rutas ───────────────────────────────────────────────────────
 const serviciosRoutes = require("./modules/servicios/servicios.routes");
@@ -43,7 +44,7 @@ app.use("/api/incidencias", incidenciasRoutes);
 app.use("/api/historial", historialRoutes);
 app.use("/api/calendario", calendarioRoutes);
 app.use("/api/tecnicos", tecnicosRoutes);
-app.use("/api/webhooks", verifyBotApiKey, webhooksRoutes);
+app.use("/api/webhooks", verifyBearerToken, webhooksRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -58,7 +59,6 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`🚀  Polizas API corriendo en puerto: ${PORT}`);
-
 });
 
 module.exports = app;
