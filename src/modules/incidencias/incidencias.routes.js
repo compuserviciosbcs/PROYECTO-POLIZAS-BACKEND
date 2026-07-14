@@ -59,12 +59,16 @@ router.get("/", verifyBearerToken, async (req, res, next) => {
       search,
     } = req.query;
     let sql = `
-      SELECT i.*, e.nombre AS empresa_nombre, u.nombre AS usuario_nombre, t.nombre AS tecnico_nombre
+      SELECT i.*, 
+             e.nombre AS empresa_nombre, 
+             u.nombre AS usuario_nombre, 
+             t.nombre AS tecnico_nombre
       FROM incidencias i
-      JOIN empresas e        ON e.id = i.empresa_id
+      LEFT JOIN empresas e   ON e.id = i.empresa_id
       LEFT JOIN usuarios u   ON u.id = i.usuario_id
       LEFT JOIN tecnicos t   ON t.id = i.tecnico_id
       WHERE 1=1`;
+
     const params = [];
 
     if (estatus) {
@@ -92,8 +96,7 @@ router.get("/", verifyBearerToken, async (req, res, next) => {
       params.push(...Array(3).fill(`%${search}%`));
     }
 
-    sql +=
-      ' ORDER BY FIELD(i.estatus,"abierto","pendiente","solucionado","no_solucionado"), i.fecha_creacion DESC';
+    sql += " ORDER BY i.fecha_creacion DESC";
 
     const [rows] = await db.query(sql, params);
     ok(res, rows);
@@ -213,14 +216,20 @@ const validarIncidencia = [
     .withMessage("Prioridad inválida."),
 ];
 
-router.post("/", validarIncidencia, validate, verifyBearerToken, async (req, res, next) => {
-  try {
-    const inc = await crearIncidencia(req.body);
-    created(res, inc);
-  } catch (e) {
-    next(e);
-  }
-});
+router.post(
+  "/",
+  validarIncidencia,
+  validate,
+  verifyBearerToken,
+  async (req, res, next) => {
+    try {
+      const inc = await crearIncidencia(req.body);
+      created(res, inc);
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 
 // ── PATCH /api/incidencias/:id/estatus ────────────────────────
 router.patch("/:id/estatus", verifyBearerToken, async (req, res, next) => {
