@@ -120,7 +120,7 @@ async function resolverPolizaActiva(empresaId, { poliza_nombre } = {}) {
 
 // ── GET /api/webhooks/bot/poliza ─────────────────────────────────
 // Permite al bot consultar la cobertura y servicios de un cliente
-router.get("/bot/poliza", verifyBotApiKey, async (req, res, next) => {
+router.get("/bot/poliza", async (req, res, next) => {
   try {
     const { rfc, empresa: nombreEmpresa } = req.query;
 
@@ -216,7 +216,6 @@ const validarPayload = [
 
 router.post(
   "/bot/incidencia",
-  verifyBotApiKey,
   validarPayload,
   validate,
   async (req, res, next) => {

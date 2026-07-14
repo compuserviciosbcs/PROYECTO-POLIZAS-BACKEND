@@ -4,7 +4,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const errorHandler = require("./middlewares/errorHandler");
-// const verifyBotApiKey = require("./middlewares/verifyBotApiKey");
+const verifyBotApiKey = require("./middlewares/verifyBotApiKey");
 const verifyBearerToken = require("./middlewares/verifyBearerToken");
 
 // ─── Rutas ───────────────────────────────────────────────────────
@@ -37,14 +37,14 @@ app.get("/api/health", (req, res) => {
 });
 
 // ─── Endpoints ────────────────────────────────────────────────────
-app.use("/api/servicios", serviciosRoutes);
-app.use("/api/polizas", polizasRoutes);
-app.use("/api/empresas", empresasRoutes);
-app.use("/api/incidencias", incidenciasRoutes);
-app.use("/api/historial", historialRoutes);
-app.use("/api/calendario", calendarioRoutes);
-app.use("/api/tecnicos", tecnicosRoutes);
-app.use("/api/webhooks", verifyBearerToken, webhooksRoutes);
+app.use("/api/servicios", verifyBearerToken, serviciosRoutes);
+app.use("/api/polizas", verifyBearerToken, polizasRoutes);
+app.use("/api/empresas", verifyBearerToken, empresasRoutes);
+app.use("/api/incidencias", verifyBearerToken, incidenciasRoutes);
+app.use("/api/historial", verifyBearerToken, historialRoutes);
+app.use("/api/calendario", verifyBearerToken, calendarioRoutes);
+app.use("/api/tecnicos", verifyBearerToken, tecnicosRoutes);
+app.use("/api/webhooks", verifyBotApiKey, webhooksRoutes);
 
 // ─── 404 ──────────────────────────────────────────────────────────
 app.use((req, res) => {
