@@ -23,25 +23,12 @@ const webhooksRoutes = require("./modules/webhooks/webhooks.routes");
 const app = express();
 const PORT = process.env.PORT;
 
-const allowedOrigins = [process.env.CORS_ORIGIN].filter(Boolean);
-
+// ─── Middlewares globales ─────────────────────────────────────────
+app.use(helmet());
 app.use(
   cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS bloqueado para: ${origin}`));
-      }
-    },
+    origin: process.env.CORS_ORIGIN,
     credentials: true,
-  }),
-);
-
-// ─── Middlewares globales ──────────────────────────────────────────
-app.use(
-  helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
   }),
 );
 app.use(morgan("dev"));
