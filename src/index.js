@@ -3,11 +3,14 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
+const cookieParser = require("cookie-parser");
 const errorHandler = require("./middlewares/errorHandler");
+const authMiddleware = require("./middlewares/authMiddleware");
 const verifyBotApiKey = require("./middlewares/verifyBotApiKey");
 const verifyBearerToken = require("./middlewares/verifyBearerToken");
 
 // ─── Rutas ───────────────────────────────────────────────────────
+const authRoutes = require("./modules/auth/auth.routes");
 const serviciosRoutes = require("./modules/servicios/servicios.routes");
 const polizasRoutes = require("./modules/polizas/polizas.routes");
 const empresasRoutes = require("./modules/empresas/empresas.routes");
@@ -18,14 +21,23 @@ const tecnicosRoutes = require("./modules/usuarios/tecnicos.routes");
 const webhooksRoutes = require("./modules/webhooks/webhooks.routes");
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT;
 
 // ─── Middlewares globales ─────────────────────────────────────────
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN,
+    credentials: true,
+  }),
+);
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// ─── Auth global ——————————————————————————————————————————————————
+app.use(authMiddleware);
 
 // ─── Health check ─────────────────────────────────────────────────
 app.get("/api/health", (req, res) => {
@@ -37,6 +49,7 @@ app.get("/api/health", (req, res) => {
 });
 
 // ─── Endpoints ────────────────────────────────────────────────────
+app.use("/api/auth", authRoutes);
 app.use("/api/servicios", verifyBearerToken, serviciosRoutes);
 app.use("/api/polizas", verifyBearerToken, polizasRoutes);
 app.use("/api/empresas", verifyBearerToken, empresasRoutes);
@@ -59,6 +72,7 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`🚀  Polizas API corriendo en puerto: ${PORT}`);
+  console.log(`🔐  Login: POST /api/auth/login`);
 });
 
 module.exports = app;
