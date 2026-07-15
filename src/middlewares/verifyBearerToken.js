@@ -5,15 +5,29 @@ const verifyBearerToken = (req, res, next) => {
 
   const authHeader =
     req.headers["authorization"] || req.headers["Authorization"];
-  const tokenCliente = authHeader && authHeader.split(" ");
 
-  const tokenCorrecto =
-    process.env.APP_BEARER_TOKEN || process.env.BEARER_TOKEN;
+  if (!authHeader) {
+    return res.status(401).json({
+      ok: false,
+      message: "Acceso denegado. Cabecera ausente.",
+    });
+  }
 
-  console.log("=== AUDITORÍA DE TOKEN ===");
-  console.log("Token enviado por Cliente (React):", tokenCliente);
-  console.log("Token esperado por Servidor (process.env):", tokenCorrecto);
-  console.log("==========================");
+  let tokenCliente = "";
+  if (typeof authHeader === "string") {
+    tokenCliente = authHeader.replace(/Bearer\s+/g, "").trim();
+  }
+
+  const tokenCorrecto = (
+    process.env.APP_BEARER_TOKEN ||
+    process.env.BEARER_TOKEN ||
+    ""
+  ).trim();
+
+  console.log("=== COMPROBACIÓN DE HASH ===");
+  console.log("Cliente Limpio:  ", tokenCliente);
+  console.log("Servidor Limpio: ", tokenCorrecto);
+  console.log("============================");
 
   if (!tokenCliente || tokenCliente !== tokenCorrecto) {
     return res.status(401).json({
