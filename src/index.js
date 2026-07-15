@@ -62,7 +62,7 @@ app.get("/api/health", (req, res) => {
 });
 
 // ─── Endpoints ────────────────────────────────────────────────────
-app.use("/api/auth", verifyBearerToken, authRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/servicios", verifyBearerToken, serviciosRoutes);
 app.use("/api/polizas", verifyBearerToken, polizasRoutes);
 app.use("/api/empresas", verifyBearerToken, empresasRoutes);
