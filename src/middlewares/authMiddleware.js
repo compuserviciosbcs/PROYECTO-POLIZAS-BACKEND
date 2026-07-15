@@ -2,10 +2,18 @@ const jwt = require("jsonwebtoken");
 
 const COOKIE_NAME = "crm_token";
 
-const PUBLIC_PATHS = ["/api/auth/login", "/api/auth/logout", "/api/webhooks"];
+const PUBLIC_PATHS = [
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/auth/me",
+  "/api/webhooks",
+  "/api/health",
+];
 
 const authMiddleware = (req, res, next) => {
-  if (PUBLIC_PATHS.some((p) => req.path.startsWith(p))) return next();
+  const url = req.originalUrl.split("?")[0];
+
+  if (PUBLIC_PATHS.some((p) => url.startsWith(p))) return next();
 
   const token = req.cookies?.[COOKIE_NAME];
 
