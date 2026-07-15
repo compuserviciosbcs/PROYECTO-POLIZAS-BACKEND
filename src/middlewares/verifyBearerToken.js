@@ -5,10 +5,15 @@ const verifyBearerToken = (req, res, next) => {
 
   const authHeader =
     req.headers["authorization"] || req.headers["Authorization"];
-  const tokenCliente = authHeader && authHeader.split(" ")[1];
+  const tokenCliente = authHeader && authHeader.split(" ");
 
   const tokenCorrecto =
     process.env.APP_BEARER_TOKEN || process.env.BEARER_TOKEN;
+
+  console.log("=== AUDITORÍA DE TOKEN ===");
+  console.log("Token enviado por Cliente (React):", tokenCliente);
+  console.log("Token esperado por Servidor (process.env):", tokenCorrecto);
+  console.log("==========================");
 
   if (!tokenCliente || tokenCliente !== tokenCorrecto) {
     return res.status(401).json({
