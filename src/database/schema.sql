@@ -200,13 +200,3 @@ CREATE TABLE IF NOT EXISTS mantenimientos (
   FOREIGN KEY (tecnico_id)    REFERENCES tecnicos(id)    ON DELETE SET NULL,
   FOREIGN KEY (incidencia_id) REFERENCES incidencias(id) ON DELETE CASCADE
 );
-
--- USUARIOS DEL PANEL (autenticación)
-CREATE TABLE IF NOT EXISTS usuarios_panel (
-  id         INT AUTO_INCREMENT PRIMARY KEY,
-  nombre     VARCHAR(100) NOT NULL,
-  email      VARCHAR(120) NOT NULL UNIQUE,
-  password   VARCHAR(255) NOT NULL,
-  activo     TINYINT(1) NOT NULL DEFAULT 1,
-  creado_en  DATETIME DEFAULT CURRENT_TIMESTAMP
-);
