@@ -91,7 +91,6 @@ async function resolverPolizaActiva(empresaId, { poliza_nombre } = {}) {
     WHERE ep.empresa_id = ? AND ep.activa = 1`;
   const params = [empresaId];
 
-  // Si el bot especificó cuál póliza, intenta filtrar por nombre
   if (poliza_nombre) {
     sql += " AND p.nombre LIKE ?";
     params.push(`%${poliza_nombre}%`);
@@ -102,7 +101,6 @@ async function resolverPolizaActiva(empresaId, { poliza_nombre } = {}) {
 
   if (rows.length) return rows[0];
 
-  // Fallback: si no hay coincidencia exacta por nombre, toma cualquier póliza activa
   if (poliza_nombre) {
     const [fallback] = await db.query(
       `SELECT ep.id AS empresa_poliza_id, ep.*, p.nombre AS poliza_nombre
@@ -119,7 +117,6 @@ async function resolverPolizaActiva(empresaId, { poliza_nombre } = {}) {
 }
 
 // ── GET /api/webhooks/bot/poliza ─────────────────────────────────
-// Permite al bot consultar la cobertura y servicios de un cliente
 router.get("/bot/poliza", async (req, res, next) => {
   try {
     const { rfc, empresa: nombreEmpresa } = req.query;
@@ -161,7 +158,6 @@ router.get("/bot/poliza", async (req, res, next) => {
     }
 
     // 3. Consultar los servicios vinculados a esa póliza específica
-    // (Ajusta los nombres de las tablas/columnas si tu tabla pivot se llama diferente)
     const [servicios] = await db.query(
       `SELECT s.nombre, s.descripcion 
          FROM servicios s
@@ -199,7 +195,6 @@ const validarPayload = [
   body("incidencia.clasificacion")
     .isIn(["remota", "presencial"])
     .withMessage("Clasificación inválida."),
-  // Si es presencial, la cita con fecha y hora es obligatoria para poder agendar en el calendario
   body("incidencia.cita.fecha")
     .if(body("incidencia.clasificacion").equals("presencial"))
     .notEmpty()
@@ -266,7 +261,7 @@ router.post(
         empresa_id: empresa.id,
         usuario_id: usuario?.id || null,
         empresa_poliza_id: polizaVinculada.empresa_poliza_id,
-        tecnico_id: null, // se asigna manualmente desde el panel
+        tecnico_id: null,
         asunto: incidencia.asunto,
         descripcion: incidencia.descripcion,
         clasificacion: incidencia.clasificacion,
@@ -284,7 +279,6 @@ router.post(
       ) {
         const inicio = `${incidencia.cita.fecha} ${incidencia.cita.hora}:00`;
 
-        // Cómputo de hora fin seguro contra desfases de zona horaria (Docker UTC)
         const [horaStr, minStr] = incidencia.cita.hora.split(":");
         const horaFin = (parseInt(horaStr, 10) + 1).toString().padStart(2, "0");
         const fin = `${incidencia.cita.fecha} ${horaFin}:${minStr}:00`;
@@ -328,5 +322,44 @@ router.post(
     }
   },
 );
+
+// ── GET /api/webhooks/bot/incidencia/:ticket ─────────────────────
+router.get("/bot/incidencia/:ticket", async (req, res, next) => {
+  try {
+    const { ticket } = req.params;
+
+    const [rows] = await db.query(
+      `SELECT i.ticket, i.estatus, i.asunto, i.solucion_aplicada, i.fecha_cierre,
+              e.nombre AS empresa_nombre
+       FROM incidencias i
+       JOIN empresas e ON e.id = i.empresa_id
+       WHERE i.ticket = ? LIMIT 1`,
+      [ticket],
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        ok: false,
+        message: `No encontré ningún reporte con el folio ${ticket}.`,
+      });
+    }
+
+    const inc = rows[0];
+
+    return ok(res, {
+      ticket: inc.ticket,
+      empresa: inc.empresa_nombre,
+      estatus: inc.estatus,
+      asunto: inc.asunto,
+      solucion_aplicada: inc.solucion_aplicada || null,
+      fecha_cierre: inc.fecha_cierre || null,
+      mensaje_sugerido: inc.solucion_aplicada
+        ? `El folio ${inc.ticket} ("${inc.asunto}") ya fue cerrado. La solución técnica aplicada fue: ${inc.solucion_aplicada}.`
+        : `El folio ${inc.ticket} ("${inc.asunto}") se encuentra actualmente con estatus: ${inc.estatus} y sigue en proceso de atención.`,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
 
 module.exports = router;
