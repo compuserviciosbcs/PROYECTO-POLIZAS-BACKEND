@@ -8,6 +8,7 @@ const verifyBotApiKey = require("./middlewares/verifyBotApiKey");
 const verifyBearerToken = require("./middlewares/verifyBearerToken");
 
 // ─── Rutas ───────────────────────────────────────────────────────
+const authRoutes = require("./modules/auth/auth.routes");
 const serviciosRoutes = require("./modules/servicios/servicios.routes");
 const polizasRoutes = require("./modules/polizas/polizas.routes");
 const empresasRoutes = require("./modules/empresas/empresas.routes");
@@ -22,7 +23,12 @@ const PORT = process.env.PORT || 3001;
 
 // ─── Middlewares globales ─────────────────────────────────────────
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGINs,
+    credentials: true,
+  }),
+);
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -37,6 +43,7 @@ app.get("/api/health", (req, res) => {
 });
 
 // ─── Endpoints ────────────────────────────────────────────────────
+app.use("/api/auth", authRoutes);
 app.use("/api/servicios", verifyBearerToken, serviciosRoutes);
 app.use("/api/polizas", verifyBearerToken, polizasRoutes);
 app.use("/api/empresas", verifyBearerToken, empresasRoutes);
