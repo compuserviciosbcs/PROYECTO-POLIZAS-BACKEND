@@ -213,36 +213,68 @@ const validarIncidencia = [
     .withMessage("Prioridad inválida."),
 ];
 
-router.post("/", validarIncidencia, validate, verifyBearerToken, async (req, res, next) => {
-  try {
-    const inc = await crearIncidencia(req.body);
-    created(res, inc);
-  } catch (e) {
-    next(e);
-  }
-});
+router.post(
+  "/",
+  validarIncidencia,
+  validate,
+  verifyBearerToken,
+  async (req, res, next) => {
+    try {
+      const inc = await crearIncidencia(req.body);
+      created(res, inc);
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 
 // ── PATCH /api/incidencias/:id/estatus ────────────────────────
 router.patch("/:id/estatus", verifyBearerToken, async (req, res, next) => {
+  const conn = await db.getConnection();
   try {
-    const { estatus } = req.body;
+    const { estatus, tecnico_id, cita } = req.body;
     const validos = ["abierto", "pendiente", "solucionado", "no_solucionado"];
     if (!validos.includes(estatus))
       return res.status(422).json({ ok: false, message: "Estatus inválido." });
 
-    const [check] = await db.query("SELECT id FROM incidencias WHERE id = ?", [
-      req.params.id,
-    ]);
+    const [check] = await conn.query(
+      "SELECT id FROM incidencias WHERE id = ?",
+      [req.params.id],
+    );
     if (!check.length) return notFound(res);
 
-    await db.query("UPDATE incidencias SET estatus = ? WHERE id = ?", [
-      estatus,
-      req.params.id,
-    ]);
+    await conn.beginTransaction();
+
+    await conn.query(
+      "UPDATE incidencias SET estatus = ?, tecnico_id = ? WHERE id = ?",
+      [estatus, tecnico_id || null, req.params.id],
+    );
+
+    if (cita && cita.fecha_cita && cita.hora_cita) {
+      await conn.query(
+        `INSERT INTO citas_presenciales (incidencia_id, fecha_cita, hora_cita, direccion)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE fecha_cita=?, hora_cita=?, direccion=?`,
+        [
+          req.params.id,
+          cita.fecha_cita,
+          cita.hora_cita,
+          cita.direccion || null,
+          cita.fecha_cita,
+          cita.hora_cita,
+          cita.direccion || null,
+        ],
+      );
+    }
+
+    await conn.commit();
     const inc = await getIncidenciaCompleta(req.params.id);
     ok(res, inc);
   } catch (e) {
+    await conn.rollback();
     next(e);
+  } finally {
+    conn.release();
   }
 });
 
