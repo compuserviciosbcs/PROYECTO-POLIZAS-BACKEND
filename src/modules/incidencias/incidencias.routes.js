@@ -113,6 +113,7 @@ router.get("/stats", verifyBearerToken, async (req, res, next) => {
         SUM(estatus = 'solucionado')    AS solucionadas,
         SUM(estatus = 'no_solucionado') AS no_solucionadas,
         SUM(clasificacion = 'presencial') AS presenciales,
+        SUM(clasificacion = 'remota')   AS remotas,
         AVG(sla_respuesta_hrs)          AS avg_sla_respuesta,
         AVG(sla_solucion_hrs)           AS avg_sla_solucion
       FROM incidencias`);
@@ -143,6 +144,7 @@ async function crearIncidencia({
   descripcion,
   clasificacion,
   prioridad,
+  anydesk_id,
   cita,
 }) {
   const conn = await db.getConnection();
@@ -155,8 +157,10 @@ async function crearIncidencia({
     const ticket = generarTicket(last.lastId || 0);
 
     const [result] = await conn.query(
-      `INSERT INTO incidencias (ticket, empresa_id, usuario_id, empresa_poliza_id, tecnico_id, asunto, descripcion, clasificacion, prioridad)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO incidencias
+         (ticket, empresa_id, usuario_id, empresa_poliza_id, tecnico_id,
+          asunto, descripcion, clasificacion, prioridad, anydesk_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         ticket,
         empresa_id,
@@ -167,6 +171,7 @@ async function crearIncidencia({
         descripcion,
         clasificacion,
         prioridad || "media",
+        clasificacion === "remota" ? anydesk_id || null : null,
       ],
     );
 
@@ -174,7 +179,8 @@ async function crearIncidencia({
 
     if (clasificacion === "presencial" && cita) {
       await conn.query(
-        `INSERT INTO citas_presenciales (incidencia_id, fecha_cita, hora_cita, direccion, contacto, telefono)
+        `INSERT INTO citas_presenciales
+           (incidencia_id, fecha_cita, hora_cita, direccion, contacto, telefono)
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
           incId,
@@ -211,6 +217,7 @@ const validarIncidencia = [
   body("prioridad")
     .isIn(["alta", "media", "baja"])
     .withMessage("Prioridad inválida."),
+  body("anydesk_id").optional({ checkFalsy: true }).isString(),
 ];
 
 router.post(
@@ -232,13 +239,13 @@ router.post(
 router.patch("/:id/estatus", verifyBearerToken, async (req, res, next) => {
   const conn = await db.getConnection();
   try {
-    const { estatus, tecnico_id, cita } = req.body;
+    const { estatus, tecnico_id, anydesk_id, cita } = req.body;
     const validos = ["abierto", "pendiente", "solucionado", "no_solucionado"];
     if (!validos.includes(estatus))
       return res.status(422).json({ ok: false, message: "Estatus inválido." });
 
     const [check] = await conn.query(
-      "SELECT id FROM incidencias WHERE id = ?",
+      "SELECT id, clasificacion FROM incidencias WHERE id = ?",
       [req.params.id],
     );
     if (!check.length) return notFound(res);
@@ -246,8 +253,11 @@ router.patch("/:id/estatus", verifyBearerToken, async (req, res, next) => {
     await conn.beginTransaction();
 
     await conn.query(
-      "UPDATE incidencias SET estatus = ?, tecnico_id = ? WHERE id = ?",
-      [estatus, tecnico_id || null, req.params.id],
+      `UPDATE incidencias
+       SET estatus = ?, tecnico_id = ?,
+           anydesk_id = IF(clasificacion = 'remota', ?, anydesk_id)
+       WHERE id = ?`,
+      [estatus, tecnico_id || null, anydesk_id || null, req.params.id],
     );
 
     if (cita && cita.fecha_cita && cita.hora_cita) {
@@ -284,8 +294,7 @@ router.patch("/:id/cerrar", verifyBearerToken, async (req, res, next) => {
   try {
     const { estatus, solucion_aplicada, sla_respuesta_hrs, sla_solucion_hrs } =
       req.body;
-    const estatusValidos = ["solucionado", "no_solucionado"];
-    if (!estatusValidos.includes(estatus))
+    if (!["solucionado", "no_solucionado"].includes(estatus))
       return res
         .status(422)
         .json({ ok: false, message: "Estatus de cierre inválido." });
@@ -295,7 +304,7 @@ router.patch("/:id/cerrar", verifyBearerToken, async (req, res, next) => {
         .json({ ok: false, message: "La solución aplicada es requerida." });
 
     const [check] = await conn.query(
-      "SELECT id, ticket, empresa_id FROM incidencias WHERE id = ?",
+      "SELECT id FROM incidencias WHERE id = ?",
       [req.params.id],
     );
     if (!check.length) return notFound(res);
@@ -303,7 +312,9 @@ router.patch("/:id/cerrar", verifyBearerToken, async (req, res, next) => {
     await conn.beginTransaction();
     const ahora = new Date();
     await conn.query(
-      `UPDATE incidencias SET estatus=?, solucion_aplicada=?, sla_respuesta_hrs=?, sla_solucion_hrs=?, fecha_cierre=? WHERE id=?`,
+      `UPDATE incidencias
+       SET estatus=?, solucion_aplicada=?, sla_respuesta_hrs=?, sla_solucion_hrs=?, fecha_cierre=?
+       WHERE id=?`,
       [
         estatus,
         solucion_aplicada,
@@ -329,6 +340,7 @@ router.patch("/:id/cerrar", verifyBearerToken, async (req, res, next) => {
         poliza: inc.poliza_nombre,
         asunto: inc.asunto,
         clasificacion: inc.clasificacion,
+        anydesk_id: inc.anydesk_id || null,
         estatus: inc.estatus,
         fecha_creacion: inc.fecha_creacion,
         fecha_cierre: inc.fecha_cierre,
