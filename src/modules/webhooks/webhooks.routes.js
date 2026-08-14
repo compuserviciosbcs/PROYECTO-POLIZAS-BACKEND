@@ -12,6 +12,8 @@ const router = express.Router();
 
 /**
  * Contrato esperado del bot para creación de incidencias:
+ *
+ * REMOTA
  * {
  *   "cliente": {
  *     "empresa": "Grupo Constructor Novatek S.A. de C.V.",   // o usa "rfc" (más confiable)
@@ -25,13 +27,9 @@ const router = express.Router();
  *   "incidencia": {
  *     "asunto": "Error en módulo de nóminas",
  *     "descripcion": "El sistema arroja error al cerrar nómina...",
- *     "clasificacion": "remota",                               // "remota" | "presencial"
- *     "prioridad": "alta",                                      // opcional, default "media"
- *     "cita": {                                                 // OBLIGATORIO si clasificacion = presencial
- *       "fecha": "2026-06-25",                                  // YYYY-MM-DD — requerido
- *       "hora": "10:00",                                        // HH:mm    — requerido
- *       "direccion": "...", "contacto": "...", "telefono": "..."
- *     }
+ *     "clasificacion": "remota",                              // "remota" | "presencial"
+ *     "prioridad": "alta",                                    // opcional, default "media"
+ *     "anydesk_id": "123 456 789"                             // OBLIGATORIO/RECOMENDADO si clasificacion = remota
  *   }
  * }
  *
@@ -39,6 +37,34 @@ const router = express.Router();
  *   1. Se crea la incidencia + su registro en citas_presenciales (detalle del ticket).
  *   2. Se crea AUTOMÁTICAMENTE un evento en `mantenimientos` con tipo='incidencia',
  *      visible en el módulo de Calendario, con duración de 1 hora por default.
+ *
+ * PRESENCIAL
+ *
+ * {
+ *   "cliente": {
+ *     "empresa": "Grupo Constructor Novatek S.A. de C.V.",
+ *     "rfc": "GCN920315AB2",
+ *     "usuario": "Roberto Salinas",
+ *     "telefono": "664-111-2233"
+ *   },
+ *   "poliza": {
+ *     "nombre": "Póliza Empresarial"
+ *   },
+ *   "incidencia": {
+ *     "asunto": "Falla en servidor local de impresión",
+ *     "descripcion": "No enciende el switch del rack principal...",
+ *     "clasificacion": "presencial",
+ *     "prioridad": "alta",
+ *     "cita": {                                               // OBLIGATORIO si clasificacion = presencial
+ *       "fecha": "2026-06-25",                                // YYYY-MM-DD — requerido
+ *       "hora": "10:00",                                      // HH:mm      — requerido
+ *       "direccion": "Av. Insurgentes #450, Piso 3",
+ *       "contacto": "Roberto Salinas",
+ *       "telefono": "664-111-2233"
+ *     }
+ *   }
+ * }
+ *
  */
 
 // ── Helper: resuelve empresa por RFC o nombre ────────────────────
@@ -195,6 +221,7 @@ const validarPayload = [
   body("incidencia.clasificacion")
     .isIn(["remota", "presencial"])
     .withMessage("Clasificación inválida."),
+  body("incidencia.anydesk_id").optional({ checkFalsy: true }).isString(),
   body("incidencia.cita.fecha")
     .if(body("incidencia.clasificacion").equals("presencial"))
     .notEmpty()
@@ -266,6 +293,7 @@ router.post(
         descripcion: incidencia.descripcion,
         clasificacion: incidencia.clasificacion,
         prioridad: incidencia.prioridad || "media",
+        anydesk_id: incidencia.anydesk_id || null,
         cita:
           incidencia.clasificacion === "presencial" ? incidencia.cita : null,
       });
@@ -306,6 +334,7 @@ router.post(
         estatus: incidenciaCreada.estatus,
         fecha_creacion: incidenciaCreada.fecha_creacion,
         incidencia_id: incidenciaCreada.id,
+        anydesk_id: incidenciaCreada.anydesk_id || null,
         cita_agendada: eventoCalendario
           ? {
               fecha: incidencia.cita.fecha,
