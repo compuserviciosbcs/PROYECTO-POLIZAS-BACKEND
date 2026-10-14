@@ -17,10 +17,11 @@ const verifyBearerToken = require("../../middlewares/verifyBearerToken");
 async function getIncidenciaCompleta(id) {
   const [rows] = await db.query(
     `SELECT i.*,
-            e.nombre  AS empresa_nombre,
-            u.nombre  AS usuario_nombre,
-            t.nombre  AS tecnico_nombre,
-            p.nombre  AS poliza_nombre
+            e.nombre   AS empresa_nombre,
+            u.nombre   AS usuario_nombre,
+            u.telefono AS usuario_telefono,
+            t.nombre   AS tecnico_nombre,
+            p.nombre   AS poliza_nombre
      FROM incidencias i
      JOIN empresas e         ON e.id = i.empresa_id
      LEFT JOIN usuarios u    ON u.id = i.usuario_id
@@ -255,7 +256,7 @@ router.patch("/:id/estatus", verifyBearerToken, async (req, res, next) => {
     await conn.query(
       `UPDATE incidencias
        SET estatus = ?, tecnico_id = ?,
-           anydesk_id = IF(clasificacion = 'remota', ?, anydesk_id)
+           anydesk_id = IF(clasificacion = 'remota', COALESCE(?, anydesk_id), anydesk_id)
        WHERE id = ?`,
       [estatus, tecnico_id || null, anydesk_id || null, req.params.id],
     );
@@ -337,6 +338,7 @@ router.patch("/:id/cerrar", verifyBearerToken, async (req, res, next) => {
         ticket: inc.ticket,
         empresa: inc.empresa_nombre,
         usuario: inc.usuario_nombre,
+        telefono: inc.usuario_telefono || null,
         poliza: inc.poliza_nombre,
         asunto: inc.asunto,
         clasificacion: inc.clasificacion,
@@ -351,6 +353,30 @@ router.patch("/:id/cerrar", verifyBearerToken, async (req, res, next) => {
         },
       },
     };
+
+    // ── noti auto al webhook del Bot ──────────────
+    const botWebhookUrl = process.env.BOT_NOTIFY_URL;
+    if (botWebhookUrl) {
+      const mensajeTexto =
+        inc.estatus === "solucionado"
+          ? `Hola ${inc.usuario_nombre || "cliente"}, te notificamos que el reporte con folio *${inc.ticket}* (${inc.asunto}) ha sido resuelto.\n\n*Solución aplicada:* ${inc.solucion_aplicada}`
+          : `Hola ${inc.usuario_nombre || "cliente"}, te informamos que el reporte con folio *${inc.ticket}* (${inc.asunto}) ha concluido con estatus: ${inc.estatus}.\n\n*Detalle:* ${inc.solucion_aplicada}`;
+
+      fetch(botWebhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-bot-api-key": process.env.BOT_API_KEY || "",
+        },
+        body: JSON.stringify({
+          telefono: inc.usuario_telefono,
+          mensaje: mensajeTexto,
+          datos: botPayload,
+        }),
+      }).catch((err) => {
+        console.error("Error al notificar al webhook del bot:", err.message);
+      });
+    }
 
     ok(res, { incidencia: inc, bot_payload: botPayload });
   } catch (e) {
