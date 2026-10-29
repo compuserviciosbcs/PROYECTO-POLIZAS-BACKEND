@@ -13,16 +13,22 @@ router.get("/", verifyBearerToken , async (req, res, next) => {
       req.query;
     let sql = `
       SELECT i.*,
-             e.nombre AS empresa_nombre,
-             u.nombre AS usuario_nombre,
-             t.nombre AS tecnico_nombre,
-             p.nombre AS poliza_nombre
+             e.nombre      AS empresa_nombre,
+             u.nombre      AS usuario_nombre,
+             u.telefono    AS usuario_telefono,
+             u.cargo       AS usuario_cargo,
+             t.nombre      AS tecnico_nombre,
+             p.nombre      AS poliza_nombre,
+             sv.nombre     AS servicio_nombre,
+             tsv.nombre    AS servicio_tipo_nombre
       FROM incidencias i
       JOIN empresas e        ON e.id = i.empresa_id
       LEFT JOIN usuarios u   ON u.id = i.usuario_id
       LEFT JOIN tecnicos t   ON t.id = i.tecnico_id
       LEFT JOIN empresa_polizas ep ON ep.id = i.empresa_poliza_id
       LEFT JOIN polizas p    ON p.id = ep.poliza_id
+      LEFT JOIN servicios sv       ON sv.id = i.servicio_id
+      LEFT JOIN tipos_servicio tsv ON tsv.id = sv.tipo_servicio_id
       WHERE i.estatus IN ('solucionado','no_solucionado')`;
     const params = [];
 
@@ -67,10 +73,22 @@ router.get("/reporte-mensual", verifyBearerToken , async (req, res, next) => {
     const month = mes || new Date().getMonth() + 1;
 
     const [tickets] = await db.query(
-      `SELECT i.*, e.nombre AS empresa_nombre, t.nombre AS tecnico_nombre
+      `SELECT i.*,
+              e.nombre   AS empresa_nombre,
+              u.nombre   AS usuario_nombre,
+              u.telefono AS usuario_telefono,
+              t.nombre   AS tecnico_nombre,
+              p.nombre   AS poliza_nombre,
+              sv.nombre  AS servicio_nombre,
+              tsv.nombre AS servicio_tipo_nombre
        FROM incidencias i
-       JOIN empresas e ON e.id = i.empresa_id
-       LEFT JOIN tecnicos t ON t.id = i.tecnico_id
+       JOIN empresas e         ON e.id = i.empresa_id
+       LEFT JOIN usuarios u    ON u.id = i.usuario_id
+       LEFT JOIN tecnicos t    ON t.id = i.tecnico_id
+       LEFT JOIN empresa_polizas ep ON ep.id = i.empresa_poliza_id
+       LEFT JOIN polizas p     ON p.id = ep.poliza_id
+       LEFT JOIN servicios sv       ON sv.id = i.servicio_id
+       LEFT JOIN tipos_servicio tsv ON tsv.id = sv.tipo_servicio_id
        WHERE YEAR(i.fecha_creacion) = ? AND MONTH(i.fecha_creacion) = ?
        ORDER BY i.fecha_creacion`,
       [year, month],

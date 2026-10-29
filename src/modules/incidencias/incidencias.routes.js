@@ -21,13 +21,19 @@ async function getIncidenciaCompleta(id) {
             u.nombre   AS usuario_nombre,
             u.telefono AS usuario_telefono,
             t.nombre   AS tecnico_nombre,
-            p.nombre   AS poliza_nombre
+            p.nombre   AS poliza_nombre,
+            p.limite_incidencias,
+            ep.contador_incidencias,
+            sv.nombre  AS servicio_nombre,
+            tsv.nombre AS servicio_tipo_nombre
      FROM incidencias i
      JOIN empresas e         ON e.id = i.empresa_id
      LEFT JOIN usuarios u    ON u.id = i.usuario_id
      LEFT JOIN tecnicos t    ON t.id = i.tecnico_id
      LEFT JOIN empresa_polizas ep ON ep.id = i.empresa_poliza_id
      LEFT JOIN polizas p     ON p.id = ep.poliza_id
+     LEFT JOIN servicios sv       ON sv.id = i.servicio_id
+     LEFT JOIN tipos_servicio tsv ON tsv.id = sv.tipo_servicio_id
      WHERE i.id = ?`,
     [id],
   );
@@ -48,6 +54,21 @@ async function getIncidenciaCompleta(id) {
   return inc;
 }
 
+// Helper — servicios disponibles dentro ddla poliza
+async function getServiciosDePoliza(empresaPolizaId) {
+  if (!empresaPolizaId) return [];
+  const [rows] = await db.query(
+    `SELECT s.id, s.nombre, s.costo, ts.nombre AS tipo_nombre
+     FROM empresa_polizas ep
+     JOIN poliza_servicios ps ON ps.poliza_id = ep.poliza_id
+     JOIN servicios s         ON s.id = ps.servicio_id
+     JOIN tipos_servicio ts   ON ts.id = s.tipo_servicio_id
+     WHERE ep.id = ?`,
+    [empresaPolizaId],
+  );
+  return rows;
+}
+
 // ── GET /api/incidencias ───────────────────────────────────────
 router.get("/", verifyBearerToken, async (req, res, next) => {
   try {
@@ -60,11 +81,16 @@ router.get("/", verifyBearerToken, async (req, res, next) => {
       search,
     } = req.query;
     let sql = `
-      SELECT i.*, e.nombre AS empresa_nombre, u.nombre AS usuario_nombre, t.nombre AS tecnico_nombre
+      SELECT i.*, e.nombre AS empresa_nombre, u.nombre AS usuario_nombre, t.nombre AS tecnico_nombre,
+             p.nombre AS poliza_nombre, p.limite_incidencias, ep.contador_incidencias,
+             sv.nombre AS servicio_nombre
       FROM incidencias i
       JOIN empresas e        ON e.id = i.empresa_id
       LEFT JOIN usuarios u   ON u.id = i.usuario_id
       LEFT JOIN tecnicos t   ON t.id = i.tecnico_id
+      LEFT JOIN empresa_polizas ep ON ep.id = i.empresa_poliza_id
+      LEFT JOIN polizas p    ON p.id = ep.poliza_id
+      LEFT JOIN servicios sv ON sv.id = i.servicio_id
       WHERE 1=1`;
     const params = [];
 
@@ -123,6 +149,25 @@ router.get("/stats", verifyBearerToken, async (req, res, next) => {
     next(e);
   }
 });
+
+// ── GET /api/incidencias/:id/servicios-disponibles ─────────────
+router.get(
+  "/:id/servicios-disponibles",
+  verifyBearerToken,
+  async (req, res, next) => {
+    try {
+      const [check] = await db.query(
+        "SELECT empresa_poliza_id FROM incidencias WHERE id = ?",
+        [req.params.id],
+      );
+      if (!check.length) return notFound(res);
+      const servicios = await getServiciosDePoliza(check[0].empresa_poliza_id);
+      ok(res, servicios);
+    } catch (e) {
+      next(e);
+    }
+  },
+);
 
 // ── GET /api/incidencias/:id ───────────────────────────────────
 router.get("/:id", verifyBearerToken, async (req, res, next) => {
@@ -194,6 +239,13 @@ async function crearIncidencia({
       );
     }
 
+    if (empresa_poliza_id) {
+      await conn.query(
+        "UPDATE empresa_polizas SET contador_incidencias = contador_incidencias + 1 WHERE id = ?",
+        [empresa_poliza_id],
+      );
+    }
+
     await conn.commit();
     return await getIncidenciaCompleta(incId);
   } catch (e) {
@@ -240,25 +292,46 @@ router.post(
 router.patch("/:id/estatus", verifyBearerToken, async (req, res, next) => {
   const conn = await db.getConnection();
   try {
-    const { estatus, tecnico_id, anydesk_id, cita } = req.body;
+    const { estatus, tecnico_id, servicio_id, anydesk_id, cita } = req.body;
     const validos = ["abierto", "pendiente", "solucionado", "no_solucionado"];
     if (!validos.includes(estatus))
       return res.status(422).json({ ok: false, message: "Estatus inválido." });
 
     const [check] = await conn.query(
-      "SELECT id, clasificacion FROM incidencias WHERE id = ?",
+      "SELECT id, clasificacion, empresa_poliza_id FROM incidencias WHERE id = ?",
       [req.params.id],
     );
     if (!check.length) return notFound(res);
+
+    // servicio debe de ser de la poliza asignada al emrpesa
+    if (servicio_id) {
+      const serviciosPoliza = await getServiciosDePoliza(
+        check[0].empresa_poliza_id,
+      );
+      const permitido = serviciosPoliza.some(
+        (s) => s.id === Number(servicio_id),
+      );
+      if (!permitido)
+        return res.status(422).json({
+          ok: false,
+          message: "El servicio no corresponde a la póliza de la incidencia.",
+        });
+    }
 
     await conn.beginTransaction();
 
     await conn.query(
       `UPDATE incidencias
-       SET estatus = ?, tecnico_id = ?,
+       SET estatus = ?, tecnico_id = ?, servicio_id = COALESCE(?, servicio_id),
            anydesk_id = IF(clasificacion = 'remota', COALESCE(?, anydesk_id), anydesk_id)
        WHERE id = ?`,
-      [estatus, tecnico_id || null, anydesk_id || null, req.params.id],
+      [
+        estatus,
+        tecnico_id || null,
+        servicio_id || null,
+        anydesk_id || null,
+        req.params.id,
+      ],
     );
 
     if (cita && cita.fecha_cita && cita.hora_cita) {

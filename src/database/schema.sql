@@ -54,11 +54,14 @@ CREATE TABLE IF NOT EXISTS polizas (
   cobertura      TEXT,
   sla_respuesta  VARCHAR(80),
   sla_solucion   VARCHAR(80),
+  limite_incidencias INT DEFAULT NULL,
   activa         TINYINT(1) NOT NULL DEFAULT 1,
   creado_en      DATETIME DEFAULT CURRENT_TIMESTAMP,
   actualizado_en DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (grupo_id) REFERENCES grupos_poliza(id)
 );
+
+ALTER TABLE polizas ADD COLUMN IF NOT EXISTS limite_incidencias INT DEFAULT NULL;
 
 -- RELACION POLIZA - SERVICIOS
 CREATE TABLE IF NOT EXISTS poliza_servicios (
@@ -105,11 +108,14 @@ CREATE TABLE IF NOT EXISTS empresa_polizas (
   poliza_id   INT NOT NULL,
   vigencia    DATE,
   vencimiento DATE,
+  contador_incidencias INT NOT NULL DEFAULT 0,
   activa      TINYINT(1) NOT NULL DEFAULT 1,
   creado_en   DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE,
   FOREIGN KEY (poliza_id)  REFERENCES polizas(id)
 );
+
+ALTER TABLE empresa_polizas ADD COLUMN IF NOT EXISTS contador_incidencias INT NOT NULL DEFAULT 0;
 
 -- TECNICOS
 CREATE TABLE IF NOT EXISTS tecnicos (
@@ -132,6 +138,7 @@ CREATE TABLE IF NOT EXISTS incidencias (
   usuario_id        INT,
   empresa_poliza_id INT,
   tecnico_id        INT,
+  servicio_id       INT,
   asunto            VARCHAR(250) NOT NULL,
   descripcion       TEXT NOT NULL,
   clasificacion     ENUM('remota','presencial') NOT NULL DEFAULT 'remota',
@@ -147,8 +154,12 @@ CREATE TABLE IF NOT EXISTS incidencias (
   FOREIGN KEY (empresa_id)        REFERENCES empresas(id),
   FOREIGN KEY (usuario_id)        REFERENCES usuarios(id)        ON DELETE SET NULL,
   FOREIGN KEY (empresa_poliza_id) REFERENCES empresa_polizas(id) ON DELETE SET NULL,
-  FOREIGN KEY (tecnico_id)        REFERENCES tecnicos(id)        ON DELETE SET NULL
+  FOREIGN KEY (tecnico_id)        REFERENCES tecnicos(id)        ON DELETE SET NULL,
+  FOREIGN KEY (servicio_id)       REFERENCES servicios(id)       ON DELETE SET NULL
 );
+
+ALTER TABLE incidencias ADD COLUMN IF NOT EXISTS servicio_id INT;
+ALTER TABLE incidencias ADD COLUMN IF NOT EXISTS anydesk_id VARCHAR(30);
 
 -- CITAS PRESENCIALES
 CREATE TABLE IF NOT EXISTS citas_presenciales (

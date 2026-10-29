@@ -104,6 +104,10 @@ const validarPoliza = [
   body("grupo_id").isInt({ min: 1 }).withMessage("Grupo inválido."),
   body("precio").isFloat({ min: 0 }).withMessage("Precio inválido."),
   body("servicios_ids").optional().isArray(),
+  body("limite_incidencias")
+    .optional({ checkFalsy: true })
+    .isInt({ min: 1 })
+    .withMessage("El límite de incidencias debe ser un entero positivo."),
 ];
 
 router.post("/", verifyBearerToken, validarPoliza, validate, async (req, res, next) => {
@@ -120,13 +124,14 @@ router.post("/", verifyBearerToken, validarPoliza, validate, async (req, res, ne
       cobertura,
       sla_respuesta,
       sla_solucion,
+      limite_incidencias,
       activa,
       servicios_ids,
     } = req.body;
 
     const [result] = await conn.query(
-      `INSERT INTO polizas (nombre, tipo, grupo_id, precio, descuento, duracion, cobertura, sla_respuesta, sla_solucion, activa)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO polizas (nombre, tipo, grupo_id, precio, descuento, duracion, cobertura, sla_respuesta, sla_solucion, limite_incidencias, activa)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         nombre,
         tipo,
@@ -137,6 +142,7 @@ router.post("/", verifyBearerToken, validarPoliza, validate, async (req, res, ne
         cobertura,
         sla_respuesta,
         sla_solucion,
+        limite_incidencias || null,
         activa ?? 1,
       ],
     );
@@ -182,12 +188,13 @@ router.put("/:id", verifyBearerToken, validarPoliza, validate, async (req, res, 
       cobertura,
       sla_respuesta,
       sla_solucion,
+      limite_incidencias,
       activa,
       servicios_ids,
     } = req.body;
 
     await conn.query(
-      `UPDATE polizas SET nombre=?, tipo=?, grupo_id=?, precio=?, descuento=?, duracion=?, cobertura=?, sla_respuesta=?, sla_solucion=?, activa=? WHERE id=?`,
+      `UPDATE polizas SET nombre=?, tipo=?, grupo_id=?, precio=?, descuento=?, duracion=?, cobertura=?, sla_respuesta=?, sla_solucion=?, limite_incidencias=?, activa=? WHERE id=?`,
       [
         nombre,
         tipo,
@@ -198,6 +205,7 @@ router.put("/:id", verifyBearerToken, validarPoliza, validate, async (req, res, 
         cobertura,
         sla_respuesta,
         sla_solucion,
+        limite_incidencias || null,
         activa ?? 1,
         req.params.id,
       ],

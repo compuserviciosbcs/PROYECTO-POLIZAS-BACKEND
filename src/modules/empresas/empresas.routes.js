@@ -57,10 +57,23 @@ router.get("/:id", verifyBearerToken , async (req, res, next) => {
           [empresa.id],
         ),
         db.query(
-          `SELECT i.id, i.ticket, i.asunto, i.estatus, i.fecha_creacion, i.fecha_cierre,
-                t.nombre AS tecnico_nombre
+          `SELECT i.id, i.ticket, i.asunto, i.descripcion, i.estatus, i.clasificacion,
+                i.prioridad, i.anydesk_id, i.solucion_aplicada,
+                i.sla_respuesta_hrs, i.sla_solucion_hrs,
+                i.fecha_creacion, i.fecha_cierre,
+                u.nombre   AS usuario_nombre,
+                u.telefono AS usuario_telefono,
+                t.nombre   AS tecnico_nombre,
+                p.nombre   AS poliza_nombre,
+                sv.nombre  AS servicio_nombre,
+                tsv.nombre AS servicio_tipo_nombre
          FROM incidencias i
-         LEFT JOIN tecnicos t ON t.id = i.tecnico_id
+         LEFT JOIN usuarios u    ON u.id = i.usuario_id
+         LEFT JOIN tecnicos t    ON t.id = i.tecnico_id
+         LEFT JOIN empresa_polizas ep ON ep.id = i.empresa_poliza_id
+         LEFT JOIN polizas p     ON p.id = ep.poliza_id
+         LEFT JOIN servicios sv       ON sv.id = i.servicio_id
+         LEFT JOIN tipos_servicio tsv ON tsv.id = sv.tipo_servicio_id
          WHERE i.empresa_id = ? ORDER BY i.fecha_creacion DESC`,
           [empresa.id],
         ),
