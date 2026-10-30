@@ -9,7 +9,7 @@ const router = express.Router();
 const verifyBearerToken = require("../../middlewares/verifyBearerToken");
 
 // ── GET /api/empresas ──────────────────────────────────────────
-router.get("/", verifyBearerToken , async (req, res, next) => {
+router.get("/", verifyBearerToken, async (req, res, next) => {
   try {
     const { estatus, giro, search } = req.query;
     let sql = "SELECT * FROM empresas WHERE 1=1";
@@ -35,7 +35,7 @@ router.get("/", verifyBearerToken , async (req, res, next) => {
 });
 
 // ── GET /api/empresas/:id — expediente completo ────────────────
-router.get("/:id", verifyBearerToken , async (req, res, next) => {
+router.get("/:id", verifyBearerToken, async (req, res, next) => {
   try {
     const [rows] = await db.query("SELECT * FROM empresas WHERE id = ?", [
       req.params.id,
@@ -103,81 +103,16 @@ const validarEmpresa = [
     .withMessage("Email inválido."),
 ];
 
-router.post("/", verifyBearerToken , validarEmpresa, validate, async (req, res, next) => {
-  const conn = await db.getConnection();
-  try {
-    await conn.beginTransaction();
-    const {
-      nombre,
-      rfc,
-      giro,
-      telefono,
-      email,
-      sitio,
-      direccion,
-      contacto_principal,
-      estatus,
-    } = req.body;
-
-    const [result] = await conn.query(
-      `INSERT INTO empresas (nombre, rfc, giro, telefono, email, sitio, direccion, contacto_principal, estatus)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        nombre,
-        rfc,
-        giro,
-        telefono,
-        email,
-        sitio,
-        direccion,
-        contacto_principal,
-        estatus || "activo",
-      ],
-    );
-
-    await conn.query(
-      "INSERT INTO bitacora_empresa (empresa_id, tipo, descripcion) VALUES (?, ?, ?)",
-      [result.insertId, "Alta", `Alta de empresa: ${nombre}`],
-    );
-
-    await conn.commit();
-    const [rows] = await db.query("SELECT * FROM empresas WHERE id = ?", [
-      result.insertId,
-    ]);
-    created(res, rows[0]);
-  } catch (e) {
-    await conn.rollback();
-    next(e);
-  } finally {
-    conn.release();
-  }
-});
-
-// ── PUT /api/empresas/:id ──────────────────────────────────────
-router.put("/:id", verifyBearerToken , validarEmpresa, validate, async (req, res, next) => {
-  const conn = await db.getConnection();
-  try {
-    const [check] = await conn.query("SELECT id FROM empresas WHERE id = ?", [
-      req.params.id,
-    ]);
-    if (!check.length) return notFound(res);
-
-    await conn.beginTransaction();
-    const {
-      nombre,
-      rfc,
-      giro,
-      telefono,
-      email,
-      sitio,
-      direccion,
-      contacto_principal,
-      estatus,
-    } = req.body;
-
-    await conn.query(
-      `UPDATE empresas SET nombre=?, rfc=?, giro=?, telefono=?, email=?, sitio=?, direccion=?, contacto_principal=?, estatus=? WHERE id=?`,
-      [
+router.post(
+  "/",
+  verifyBearerToken,
+  validarEmpresa,
+  validate,
+  async (req, res, next) => {
+    const conn = await db.getConnection();
+    try {
+      await conn.beginTransaction();
+      const {
         nombre,
         rfc,
         giro,
@@ -187,30 +122,107 @@ router.put("/:id", verifyBearerToken , validarEmpresa, validate, async (req, res
         direccion,
         contacto_principal,
         estatus,
+      } = req.body;
+
+      const [result] = await conn.query(
+        `INSERT INTO empresas (nombre, rfc, giro, telefono, email, sitio, direccion, contacto_principal, estatus)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          nombre,
+          rfc,
+          giro,
+          telefono,
+          email,
+          sitio,
+          direccion,
+          contacto_principal,
+          estatus || "activo",
+        ],
+      );
+
+      await conn.query(
+        "INSERT INTO bitacora_empresa (empresa_id, tipo, descripcion) VALUES (?, ?, ?)",
+        [result.insertId, "Alta", `Alta de empresa: ${nombre}`],
+      );
+
+      await conn.commit();
+      const [rows] = await db.query("SELECT * FROM empresas WHERE id = ?", [
+        result.insertId,
+      ]);
+      created(res, rows[0]);
+    } catch (e) {
+      await conn.rollback();
+      next(e);
+    } finally {
+      conn.release();
+    }
+  },
+);
+
+// ── PUT /api/empresas/:id ──────────────────────────────────────
+router.put(
+  "/:id",
+  verifyBearerToken,
+  validarEmpresa,
+  validate,
+  async (req, res, next) => {
+    const conn = await db.getConnection();
+    try {
+      const [check] = await conn.query("SELECT id FROM empresas WHERE id = ?", [
         req.params.id,
-      ],
-    );
+      ]);
+      if (!check.length) return notFound(res);
 
-    await conn.query(
-      "INSERT INTO bitacora_empresa (empresa_id, tipo, descripcion) VALUES (?, ?, ?)",
-      [req.params.id, "Modificacion", `Modificación de datos: ${nombre}`],
-    );
+      await conn.beginTransaction();
+      const {
+        nombre,
+        rfc,
+        giro,
+        telefono,
+        email,
+        sitio,
+        direccion,
+        contacto_principal,
+        estatus,
+      } = req.body;
 
-    await conn.commit();
-    const [rows] = await db.query("SELECT * FROM empresas WHERE id = ?", [
-      req.params.id,
-    ]);
-    ok(res, rows[0]);
-  } catch (e) {
-    await conn.rollback();
-    next(e);
-  } finally {
-    conn.release();
-  }
-});
+      await conn.query(
+        `UPDATE empresas SET nombre=?, rfc=?, giro=?, telefono=?, email=?, sitio=?, direccion=?, contacto_principal=?, estatus=? WHERE id=?`,
+        [
+          nombre,
+          rfc,
+          giro,
+          telefono,
+          email,
+          sitio,
+          direccion,
+          contacto_principal,
+          estatus,
+          req.params.id,
+        ],
+      );
+
+      await conn.query(
+        "INSERT INTO bitacora_empresa (empresa_id, tipo, descripcion) VALUES (?, ?, ?)",
+        [req.params.id, "Modificacion", `Modificación de datos: ${nombre}`],
+      );
+
+      await conn.commit();
+      const [rows] = await db.query("SELECT * FROM empresas WHERE id = ?", [
+        req.params.id,
+      ]);
+      ok(res, rows[0]);
+    } catch (e) {
+      await conn.rollback();
+      next(e);
+    } finally {
+      conn.release();
+    }
+  },
+);
 
 // ── DELETE /api/empresas/:id ───────────────────────────────────
-router.delete("/:id", verifyBearerToken , async (req, res, next) => {
+router.delete("/:id", verifyBearerToken, async (req, res, next) => {
   try {
     const [check] = await db.query("SELECT id FROM empresas WHERE id = ?", [
       req.params.id,
@@ -224,7 +236,7 @@ router.delete("/:id", verifyBearerToken , async (req, res, next) => {
 });
 
 // ── POST /api/empresas/:id/polizas ────────────────────────────
-router.post("/:id/polizas", verifyBearerToken ,async (req, res, next) => {
+router.post("/:id/polizas", verifyBearerToken, async (req, res, next) => {
   const conn = await db.getConnection();
   try {
     const { poliza_id, vigencia, vencimiento } = req.body;
@@ -257,7 +269,7 @@ router.post("/:id/polizas", verifyBearerToken ,async (req, res, next) => {
 });
 
 // ── POST /api/empresas/:id/usuarios ───────────────────────────
-router.post("/:id/usuarios", verifyBearerToken ,async (req, res, next) => {
+router.post("/:id/usuarios", verifyBearerToken, async (req, res, next) => {
   try {
     const { nombre, cargo, email, telefono } = req.body;
     if (!nombre?.trim())
