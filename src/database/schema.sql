@@ -61,8 +61,6 @@ CREATE TABLE IF NOT EXISTS polizas (
   FOREIGN KEY (grupo_id) REFERENCES grupos_poliza(id)
 );
 
-ALTER TABLE polizas ADD COLUMN IF NOT EXISTS limite_incidencias INT DEFAULT NULL;
-
 -- RELACION POLIZA - SERVICIOS
 CREATE TABLE IF NOT EXISTS poliza_servicios (
   poliza_id   INT NOT NULL,
@@ -115,8 +113,6 @@ CREATE TABLE IF NOT EXISTS empresa_polizas (
   FOREIGN KEY (poliza_id)  REFERENCES polizas(id)
 );
 
-ALTER TABLE empresa_polizas ADD COLUMN IF NOT EXISTS contador_incidencias INT NOT NULL DEFAULT 0;
-
 -- TECNICOS
 CREATE TABLE IF NOT EXISTS tecnicos (
   id        INT AUTO_INCREMENT PRIMARY KEY,
@@ -157,9 +153,6 @@ CREATE TABLE IF NOT EXISTS incidencias (
   FOREIGN KEY (tecnico_id)        REFERENCES tecnicos(id)        ON DELETE SET NULL,
   FOREIGN KEY (servicio_id)       REFERENCES servicios(id)       ON DELETE SET NULL
 );
-
-ALTER TABLE incidencias ADD COLUMN IF NOT EXISTS servicio_id INT;
-ALTER TABLE incidencias ADD COLUMN IF NOT EXISTS anydesk_id VARCHAR(30);
 
 -- CITAS PRESENCIALES
 CREATE TABLE IF NOT EXISTS citas_presenciales (
